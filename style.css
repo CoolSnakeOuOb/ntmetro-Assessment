@@ -1,0 +1,76 @@
+/* 修正了 scrolling 問題並增加了 frame header 樣式 */
+body {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    min-height: 100vh;
+}
+.login-body { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f8f9fa; }
+.login-card { width: 100%; max-width: 400px; padding: 40px; border: 1px solid #ddd; background: white; border-radius: 10px; }
+
+.top-bar {
+    background:  #212529;
+    color: white;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    position: relative; 
+}
+.top-bar a { color: white; text-decoration: none; margin-right: 10px; }
+.top-bar a:hover, .top-bar a:focus { color: white; text-decoration: none; }
+
+.main-container {
+    display: flex;
+    flex-grow: 1;
+}
+#sidebar {
+    width: 250px;
+    background: #212529;
+    color: white;
+    padding: 15px;
+    transition: width 0.3s, opacity 0.3s;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+#sidebar a { color: white; text-decoration: none; display: block; padding: 10px; }
+#sidebar a:hover { background: #343a40; }
+
+#content {
+    flex-grow: 1;
+    padding: 20px;
+    background: #f8f9fa;
+    overflow-y: auto;
+}
+.frame {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-top: 20px;
+    background: white;
+    border-radius: 5px;
+}
+.frame-header {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+.header-icon { font-size: 24px; margin-right: 10px; }
+.header-title { font-size: 20px; font-weight: bold; }
+
+.menu-toggle {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    display: none; /* Normally hidden, shown on small screens */
+}
+.hidden {
+    width: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0;
+}
+.submenu { display: flex; flex-direction: column; }

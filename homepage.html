@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考核系統</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="top-bar">
+        <h5><a href="homepage.html">新北捷運公司考核系統</a></h5>
+        <button type="button" class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <div>
+            <span id="username" class="text-white me-3"></span>
+            <button id="logout-btn" class="btn btn-danger">登出</button>
+        </div>
+    </div>
+    <div class="main-container">
+        <div id="sidebar"></div>
+
+        <div id="content">
+            <div id="supervisor-view" style="display: none;">
+                <div class="frame mb-4">
+                    <h4>上傳</h4>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <input type="file" class="form-control" id="excelFile" accept=".xls,.xlsx">
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-primary" type="button" id="uploadBtn">上傳並更新名單</button>
+                        </div>
+                    </div>
+                    <div id="upload-status" class="mt-2 small text-muted"></div>
+                </div>
+                 <div class="frame">
+                    <h4>待評核同仁列表</h4>
+                    <hr>
+                    <table id="appraisalTable" class="display" style="width:100%"></table>
+                </div>
+            </div>
+            <div id="employee-view" style="display: none;">
+                <form id="trialPeriodForm">
+                    <div class="frame">
+                        <div class="frame-header">
+                            <span class="header-icon">📋</span>
+                            <span class="header-title" style="font-size: 20px;">自評表基本資料</span>
+                        </div>
+                        <div class="frame-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="hostingbusiness" class="form-label">主辦業務:</label><input type="text" class="form-control" id="hostingbusiness"></div>
+                                <div class="col-md-6"><label for="major" class="form-label">專業:</label><input type="text" class="form-control" id="major"></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="dayfrom" class="form-label">試用期間（起）:</label><input type="date" class="form-control" id="dayfrom"></div>
+                                <div class="col-md-6"><label for="dayto" class="form-label">試用期間（止）:</label><input type="date" class="form-control" id="dayto"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="frame">
+                        <div class="frame-header">
+                            <span class="header-icon">📋</span>
+                            <span class="header-title" style="font-size: 20px;">自我評價</span>
+                        </div>
+                        <div class="frame-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_1" class="form-label">1. 對試用期間在公司的表現感到：</label><select class="form-select" id="se_1"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-6"><label for="se_2" class="form-label">2. 對與同事與主管間關係感到：</label><select class="form-select" id="se_2"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_3" class="form-label">3. 對目前的工作環境感到：</label><select class="form-select" id="se_3"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-6"><label for="se_4" class="form-label">4. 對目前的工作時間感到：</label><select class="form-select" id="se_4"><option value="1">太長</option><option value="2">稍長</option><option value="3">剛好</option><option value="4">不清楚</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_5" class="form-label">5. 對目前的待遇感到：</label><select class="form-select" id="se_5"><option value="1">很好</option><option value="2">合適</option><option value="3">稍少</option><option value="4">太少</option></select></div>
+                                <div class="col-md-6"><label for="se_6" class="form-label">6. 對目前的工作感到：</label><select class="form-select" id="se_6"><option value="1">尚能擔當更困難工作</option><option value="2">合適，但希望擔任更困難工作</option><option value="3">正適合目前本身能力</option><option value="4">能力稍感不足</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_7" class="form-label">7. 對目前的工作量感到：</label><select class="form-select" id="se_7"><option value="1">太多</option><option value="2">稍微多</option><option value="3">適中</option></select></div>
+                                <div class="col-md-6"><label for="se_8" class="form-label">8. 對目前單位工作分配感到：</label><select class="form-select" id="se_8"><option value="1">合理</option><option value="2">應做適當調整</option><option value="3">不合理</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12"><label for="se_9" class="form-label">9. 對您所從擔任職務希望：</label><select class="form-select" id="se_9"><option value="1">繼續擔任現職</option><option value="2">如能調整至同單位____職務，理由：________</option><option value="3">如可變更至____單位____職務，理由：________</option></select><input type="text" id="position_change" class="form-control mt-2" placeholder="請填寫：調整至同單位____職務，理由：________" style="display: none;"><input type="text" id="unit_change" class="form-control mt-2" placeholder="請填寫：變更至____單位____職務，理由：________" style="display: none;"></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12"><label for="se_10" class="form-label">10. 於試用期間曾經辦理重點、重大、較重要之工作事蹟：</label><input type="text" class="form-control" id="se_10"></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_10_1" class="form-label">(1) 對於該工作要求目標達成度感到：</label><select class="form-select" id="se_10_1"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-6"><label for="se_10_2" class="form-label">(2) 對於該工作安排及進度掌控感到：</label><select class="form-select" id="se_10_2"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="se_10_3" class="form-label">(3) 對於該工作自主判斷及執行感到：</label><select class="form-select" id="se_10_3"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-6"><label for="se_10_4" class="form-label">(4) 對於該工作分析思考周延性感到：</label><select class="form-select" id="se_10_4"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4"><label for="se_10_5" class="form-label">(5) 對於該工作問題界定及決策感到：</label><select class="form-select" id="se_10_5"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-4"><label for="se_10_6" class="form-label">(6) 對於該工作創新及專業運用感到：</label><select class="form-select" id="se_10_6"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                                <div class="col-md-4"><label for="se_10_7" class="form-label">(7) 對於該工作執行與完成品質感到：</label><select class="form-select" id="se_10_7"><option value="1">非常滿意</option><option value="2">滿意</option><option value="3">尚可</option><option value="4">不滿意</option></select></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="frame">
+                        <div class="frame-header">
+                            <span class="header-icon">📋</span>
+                            <span class="header-title" style="font-size: 20px;">建議事項</span>
+                        </div>
+                        <div class="frame-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="suggestion_director" class="form-label">試用期間對主管領導監督之建議：</label><input type="text" class="form-control" id="suggestion_director"></div>
+                                <div class="col-md-6"><label for="suggestion_else" class="form-label">其他建議事項：</label><input type="text" class="form-control" id="suggestion_else"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 mb-3">
+                        <button type="button" class="btn btn-primary w-100 fs-4" id="sybmitform" style="background-color: #2d5986;">📤 送出</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="share.js"></script>
+    
+<script>
+    $(document).ready(function() {
+        const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
+
+        if (!loggedInUser) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        $('#username').text(`歡迎, ${loggedInUser.name}`);
+
+        if (loggedInUser.role === 'supervisor') {
+            $('#supervisor-view').show();
+            renderSupervisorSidebar();
+            initializeSupervisorTable();
+
+            $('#uploadBtn').on('click', function() {
+                const file = $('#excelFile')[0].files[0];
+                if (!file) {
+                    $('#upload-status').text('請先選擇一個檔案！').removeClass('text-success').addClass('text-danger');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                        if (!jsonData || jsonData.length < 2) {
+                            $('#upload-status').text('檔案內容不正確，請檢查標頭或資料是否為空！').removeClass('text-success').addClass('text-danger');
+                            return;
+                        }
+
+                        const headers = jsonData[0];
+                        const dataRows = jsonData.slice(1);
+                        
+                        const employeeNumIndex = headers.indexOf('員工工號');
+                        const chineseNameIndex = headers.indexOf('中文姓名');
+                        const departmentIndex = headers.indexOf('部門名稱');
+                        const hireDateIndex = headers.indexOf('到職日期');
+                        const jobTitleIndex = headers.indexOf('職務名稱');
+                        const leaveStartIndex = headers.indexOf('留職停薪日');
+                        const leaveEndIndex = headers.indexOf('留停復職日');
+
+                        if (employeeNumIndex === -1 || chineseNameIndex === -1 || departmentIndex === -1 || hireDateIndex === -1 || jobTitleIndex === -1 || leaveStartIndex === -1 || leaveEndIndex === -1) {
+                            $('#upload-status').text('檔案標頭不正確，找不到所需的欄位！').removeClass('text-success').addClass('text-danger');
+                            return;
+                        }
+
+                        const endOfYear = new Date(Date.UTC(2024, 11, 31));
+                        const startOfYear = new Date(Date.UTC(2024, 0, 1));
+
+                        const processedData = dataRows.map(row => {
+                            if (!row[employeeNumIndex]) {
+                                return null;
+                            }
+
+                            let hireDateValue = row[hireDateIndex];
+                            let formattedHireDate = '';
+                            let appraisalType = '不予考核';
+
+                            let hireDate = null;
+                            if (typeof hireDateValue === 'number') {
+                                const excelDate = new Date(Date.UTC(1899, 11, 30));
+                                excelDate.setDate(excelDate.getDate() + hireDateValue);
+                                hireDate = excelDate;
+                                formattedHireDate = hireDate.getFullYear() + '/' + (hireDate.getMonth() + 1).toString().padStart(2, '0') + '/' + hireDate.getDate().toString().padStart(2, '0');
+                            } else if (typeof hireDateValue === 'string') {
+                                const parts = hireDateValue.split('/');
+                                if (parts.length === 3) {
+                                    hireDate = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+                                    formattedHireDate = hireDateValue;
+                                } else {
+                                    formattedHireDate = hireDateValue;
+                                }
+                            }
+                            
+                            let leaveStartValue = row[leaveStartIndex];
+                            let leaveEndValue = row[leaveEndIndex];
+                            let leaveStartDate = null;
+                            let leaveEndDate = null;
+
+                            if (typeof leaveStartValue === 'number' && leaveStartValue) {
+                                const excelDate = new Date(Date.UTC(1899, 11, 30));
+                                excelDate.setDate(excelDate.getDate() + leaveStartValue);
+                                leaveStartDate = excelDate;
+                            } else if (typeof leaveStartValue === 'string' && leaveStartValue) {
+                                const parts = leaveStartValue.split('/');
+                                if (parts.length === 3) {
+                                    leaveStartDate = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+                                }
+                            }
+
+                            if (typeof leaveEndValue === 'number' && leaveEndValue) {
+                                const excelDate = new Date(Date.UTC(1899, 11, 30));
+                                excelDate.setDate(excelDate.getDate() + leaveEndValue);
+                                leaveEndDate = excelDate;
+                            } else if (typeof leaveEndValue === 'string' && leaveEndValue) {
+                                const parts = leaveEndValue.split('/');
+                                if (parts.length === 3) {
+                                    leaveEndDate = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+                                }
+                            }
+
+                            let leaveDays = 0;
+                            if (leaveStartDate) {
+                                const effectiveLeaveEndDate = leaveEndDate ? leaveEndDate : endOfYear;
+                                const leaveStartInYear = leaveStartDate < startOfYear ? startOfYear : leaveStartDate;
+                                const leaveEndInYear = effectiveLeaveEndDate > endOfYear ? endOfYear : effectiveLeaveEndDate;
+
+                                if (leaveStartInYear <= leaveEndInYear) {
+                                    leaveDays = Math.floor((leaveEndInYear.getTime() - leaveStartInYear.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                }
+                            }
+                            
+                            if (leaveDays >= 180) {
+                                appraisalType = '不予考績';
+                            } else if (hireDate && !isNaN(hireDate.getTime())) {
+                                // 修正邏輯：從正式任職起算日或當年度開始日（取較晚者）
+                                const probationEndDate = new Date(hireDate.getUTCFullYear(), hireDate.getUTCMonth() + 1, 1);
+                                probationEndDate.setUTCMonth(probationEndDate.getUTCMonth() + 6);
+
+                                const actualWorkStart = probationEndDate > startOfYear ? probationEndDate : startOfYear;
+                                const actualWorkEnd = endOfYear;
+                                const actualWorkDays = Math.floor((actualWorkEnd.getTime() - actualWorkStart.getTime()) / (1000 * 60 * 60 * 24)) + 1 - leaveDays;
+
+                                if (actualWorkDays >= 365) {
+                                     appraisalType = '年考';
+                                } else if (actualWorkDays >= 180) {
+                                     appraisalType = '另考';
+                                } else {
+                                    appraisalType = '不予考核';
+                                }
+                            }
+                            
+                            return {
+                                "employeeId": row[employeeNumIndex] || '',
+                                "name": row[chineseNameIndex] || '',
+                                "department": row[departmentIndex] || '',
+                                "hireDate": formattedHireDate,
+                                "jobTitle": row[jobTitleIndex] || '',
+                                "appraisalType": appraisalType
+                            };
+                        }).filter(item => item !== null);
+                        
+                        const table = $('#appraisalTable').DataTable();
+                        table.clear().rows.add(processedData).draw();
+                        
+                        $('#upload-status').text('名單已成功更新！').removeClass('text-danger').addClass('text-success');
+
+                    } catch (error) {
+                        console.error('檔案處理失敗:', error);
+                        $('#upload-status').text('檔案處理失敗，請檢查檔案格式！').removeClass('text-success').addClass('text-danger');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        } else {
+            $('#employee-view').show();
+            renderEmployeeSidebar();
+            
+            $('#se_9').on('change', function() {
+                const input_1 = $('#position_change');
+                const input_2 = $('#unit_change');
+                if (this.value === '2') {
+                    input_1.show();
+                    input_2.hide().val('');
+                } else if (this.value === '3') {
+                    input_2.show();
+                    input_1.hide().val('');
+                } else {
+                    input_1.hide().val('');
+                    input_2.hide().val('');
+                }
+            });
+        }
+
+        $('#logout-btn').on('click', function() {
+            sessionStorage.removeItem('loggedInUser');
+            window.location.href = 'login.html';
+        });
+
+        function renderSupervisorSidebar() {
+            const sidebarHtml = `
+                <div>
+                    <a href="#" id="filterAll" class="itemToggle">首頁（顯示全部）</a>
+                    <a href="#" class="itemToggle">同仁年度考核<span class="arrow">▼</span></a>
+                    <div class="submenu"><a href="#" id="filterAnnual">－考核表</a></div>
+                    <a href="#" class="itemToggle">同仁另予考核<span class="arrow">▼</span></a>
+                    <div class="submenu"><a href="#" id="filterSpecial">－考核表</a></div>
+                    <a href="#" class="itemToggle">同仁試用期考核<span class="arrow">▼</span></a>
+                    <div class="submenu"><a href="#" id="filterProbation">－考核表</a></div>
+                </div>`;
+            $('#sidebar').html(sidebarHtml);
+            let toggles = document.querySelectorAll(".itemToggle");
+            toggles.forEach(function (toggle) {
+                let submenu = toggle.nextElementSibling;
+                if (submenu && submenu.classList.contains("submenu")) {
+                    submenu.style.display = "none";
+                }
+            });
+        }
+
+        function renderEmployeeSidebar() {
+            const sidebarHtml = `<div><a href="#">填寫自評表</a><a href="#">查看我的考核紀錄</a></div>`;
+            $('#sidebar').html(sidebarHtml);
+        }
+
+        function initializeSupervisorTable() {
+            let table = $('#appraisalTable').DataTable({
+                "data": [],
+                "columns": [
+                    { "data": 'employeeId', "title": "員工工號" },
+                    { "data": 'name', "title": "中文姓名" },
+                    { "data": 'department', "title": "部門名稱" },
+                    { "data": 'jobTitle', "title": "職務名稱" },
+                    { "data": 'hireDate', "title": "到職日期" },
+                    { "data": 'appraisalType', "title": "考核類別" },
+                    {
+                        "data": null, "title": "操作",
+                        "render": function(data, type, row) {
+                            return `<a href="appraisal_form.html?employeeId=${row.employeeId}" class="btn btn-primary btn-sm">進行評核</a>`;
+                        },
+                        "orderable": false
+                    }
+                ],
+                "language": { "url": "https://cdn.datatables.net/plug-ins/1.11.5/i18n/zh-HANT.json" }
+            });
+
+            $('#filterAll').on('click', function(e) { e.preventDefault(); table.column(5).search('').draw(); });
+            $('#filterAnnual').on('click', function(e) { e.preventDefault(); table.column(5).search('年考').draw(); });
+            $('#filterSpecial').on('click', function(e) { e.preventDefault(); table.column(5).search('另考').draw(); });
+            $('#filterProbation').on('click', function(e) { e.preventDefault(); table.column(5).search('不予考核').draw(); });
+        }
+    });
+</script>
+</body>
+</html>

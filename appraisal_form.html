@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考核表單</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="top-bar">
+        <h5><a href="homepage.html">返回列表</a></h5>
+    </div>
+    <div class="main-container" style="display: block;">
+        <div id="content">
+            <h4 class="text-center my-4">從業人員考核表</h4>
+            <div class="frame">
+                <div class="frame-header">
+                    <span class="header-icon">👤</span>
+                    <span class="header-title">受評者基本資料</span>
+                </div>
+                <div class="frame-body">
+                    <table class="table table-bordered mb-0">
+                        <tbody>
+                             <tr>
+                                <td class="table-light">姓名</td><td id="emp-name"></td>
+                                <td class="table-light">單位</td><td id="emp-department" colspan="3"></td>
+                            </tr>
+                            <tr>
+                                <td class="table-light">員工編號</td><td id="emp-id"></td>
+                                <td class="table-light">到職日期</td><td id="emp-hire-date"></td>
+                                <td class="table-light">敘薪職等</td><td id="emp-level"></td>
+                            </tr>
+                            <tr>
+                                <td class="table-light">差勤</td>
+                                <td colspan="5">
+                                    事假：<span id="leave-personal">0</span> 小時，
+                                    病假：<span id="leave-sick">0</span> 小時
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="frame">
+                <div class="frame-header">
+                    <span class="header-icon">📝</span>
+                    <span class="header-title">壹、考核內容</span>
+                </div>
+                <div class="frame-body">
+                    <table class="table table-bordered text-center mb-0">
+                        <thead class="table-light">
+                            <tr><th>項目</th><th>考核內容</th><th>權重</th><th>得分</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td rowspan="5" class="align-middle">工作表現 (40%)</td>
+                                <td>專業知識：對其工作所具備之專業知識及作業流程之熟練度</td>
+                                <td></td><td><input type="number" class="form-control score-input"></td>
+                            </tr>
+                            <tr>
+                                <td>創新思維：能跳脫舊有思維提出創意或具體改善措施</td>
+                                <td></td><td><input type="number" class="form-control score-input"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="frame">
+                <div class="frame-header">
+                    <span class="header-icon">🌟</span><span class="header-title">貳、年度貢獻</span>
+                </div>
+                <div class="frame-body">
+                    <textarea class="form-control" rows="3" placeholder="請填寫年度貢獻..."></textarea>
+                </div>
+            </div>
+             <div class="frame">
+                <div class="frame-header">
+                    <span class="header-icon">✍️</span><span class="header-title">主管簽核</span>
+                </div>
+                <div class="frame-body">
+                    <div class="row">
+                        <div class="col-md-4"><strong>初核主管:</strong><hr></div>
+                        <div class="col-md-4"><strong>覆核主管:</strong><hr></div>
+                        <div class="col-md-4"><strong>單位主管:</strong><hr></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4 align-items-center">
+                <div class="col-md-8">
+                    <table class="table table-bordered w-auto">
+                       <tbody>
+                           <tr>
+                               <td class="table-light">年度考績總分</td>
+                               <td id="total-score" class="text-center fw-bold">0</td>
+                               <td class="table-light">等第</td>
+                               <td id="final-grade" class="text-center fw-bold"></td>
+                           </tr>
+                       </tbody>
+                    </table>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-secondary">暫存</button>
+                    <button class="btn btn-success ms-2">送出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script>
+    $(document).ready(function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const employeeId = urlParams.get('employeeId');
+        const employeeDatabase = {
+            "11001": { name: "王小明", department: "技術部", title: "工程師", hireDate: "2021-03-15", level: "P3", personalLeave: 8, sickLeave: 16 },
+            "11002": { name: "陳怡君", department: "營運部", title: "管理師", hireDate: "2023-08-01", level: "P2", personalLeave: 0, sickLeave: 4 }
+        };
+        const employeeData = employeeDatabase[employeeId];
+
+        if (employeeData) {
+            $('#emp-name').text(employeeData.name);
+            $('#emp-department').text(employeeData.department + ' - ' + employeeData.title);
+            $('#emp-id').text(employeeId);
+            $('#emp-hire-date').text(employeeData.hireDate);
+            $('#emp-level').text(employeeData.level);
+            $('#leave-personal').text(employeeData.personalLeave);
+            $('#leave-sick').text(employeeData.sickLeave);
+        } else {
+            $('.frame').first().html('<h4>錯誤：找不到該員工的資料</h4>');
+        }
+
+        function calculateScoreAndGrade() {
+            let totalScore = 0;
+            $('.score-input').each(function() {
+                totalScore += parseFloat($(this).val()) || 0;
+            });
+            $('#total-score').text(totalScore);
+
+            let grade = '';
+            if (totalScore >= 90) { grade = '優'; }
+            else if (totalScore >= 80) { grade = '甲'; }
+            else if (totalScore >= 70) { grade = '乙'; }
+            else if (totalScore >= 60) { grade = '丙'; }
+            else if (totalScore > 0) { grade = '丁'; }
+            $('#final-grade').text(grade);
+        }
+        $('.score-input').on('input', calculateScoreAndGrade);
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>考核系統登入</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .login-body { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f8f9fa; }
+        .login-card { width: 100%; max-width: 400px; padding: 40px; border: 1px solid #ddd; background: white; border-radius: 10px; }
+    </style>
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <h3 class="text-center mb-4">新北捷運公司考核系統</h3>
+        <form id="login-form">
+            <div class="mb-3">
+                <label for="employeeId" class="form-label">員工編號</label>
+                <input type="text" class="form-control" id="employeeId" required>
+            </div>
+             <div class="mb-3">
+                <label for="password" class="form-label">密碼</label>
+                <input type="password" class="form-control" id="password" required>
+            </div>
+
+            <div class="alert alert-info p-2 mt-3">
+                <p class="mb-1 small"><strong>測試帳號：</strong></p>
+                <ul class="mb-0 small" style="padding-left: 20px;">
+                    <li>主管: 10001 / 123</li>
+                    <li>員工: 11001 / 123</li>
+                </ul>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mt-3">登入</button>
+            <div id="error-message" class="text-danger mt-2"></div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script>
+    const employeeDatabase = {
+        "10001": { name: "主管Ａ", department: "管理部", title: "經理", role: "supervisor", password: "123"},
+        "11001": { name: "員工A", department: "技術部", title: "工程師", role: "employee", password: "123" },
+        "11002": { name: "陳怡君", department: "營運部", title: "管理師", role: "employee", password: "123" }
+    };
+
+    $('#login-form').on('submit', function(e) {
+        e.preventDefault();
+        let employeeId = $('#employeeId').val();
+        let password = $('#password').val();
+        let user = employeeDatabase[employeeId];
+
+        if (user && user.password === password) {
+            sessionStorage.setItem('loggedInUser', JSON.stringify({ id: employeeId, role: user.role, name: user.name }));
+            window.location.href = 'homepage.html';
+        } else {
+            $('#error-message').text('員工編號或密碼錯誤');
+        }
+    });
+    </script>
+</body>
+</html>
