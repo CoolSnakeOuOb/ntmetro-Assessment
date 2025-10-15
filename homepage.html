@@ -381,6 +381,7 @@
 
             $('#appraisalTable tbody').on('change', '.appraisal-type-select', function() {
                 const newType = $(this).val();
+                row.data(rowData).draw(false);
                 const rowData = table.row($(this).parents('tr')).data();
                 rowData.appraisalType = newType;
                 table.row($(this).parents('tr')).data(rowData).draw();
