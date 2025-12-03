@@ -1,5 +1,4 @@
-// 1. 讀取 Excel 檔案 (超級聰明版：支援指定必要關鍵字)
-// mustInclude: 一個陣列，指定該分頁必須包含哪些字，例如 ['員工工號', '合計']
+// 1. 讀取 Excel 檔案 (聰明搜尋版：自動遍歷所有分頁，直到找到關鍵字)
 function readExcelFile(file, mustInclude = ['員工工號']) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -9,60 +8,48 @@ function readExcelFile(file, mustInclude = ['員工工號']) {
                 const workbook = XLSX.read(data, { type: 'array' });
                 
                 let targetSheetData = null;
-                let foundSheetName = "";
 
                 // 迴圈：一個一個分頁檢查
                 for (const sheetName of workbook.SheetNames) {
                     const worksheet = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                     
-                    // 檢查前 20 列
-                    // 條件：這一列必須 "同時" 包含所有 mustInclude 裡的關鍵字
                     const isValidSheet = jsonData.slice(0, 20).some(row => 
-                        row && mustInclude.every(keyword => row.includes(keyword))
+                        row && mustInclude.every(keyword => row.some(cell => cell && cell.toString().includes(keyword)))
                     );
 
                     if (isValidSheet) {
                         targetSheetData = jsonData;
-                        foundSheetName = sheetName;
-                        console.log(`Bingo! 在分頁 "${sheetName}" 找到包含 ${mustInclude} 的資料了！`);
+                        console.log(`Bingo! 在分頁 "${sheetName}" 找到目標資料！`);
                         break; 
                     }
                 }
 
-                // 如果找不到，回傳 null 讓後面報錯，或者回傳第一個分頁
                 if (!targetSheetData) {
-                    console.warn(`在所有分頁都找不到同時包含 ${mustInclude} 的資料。`);
-                    // 這裡我們不回傳預設值了，直接回傳 null，讓外面知道找不到對的分頁
+                    console.warn(`找不到包含 ${mustInclude} 的資料分頁。`);
                     resolve(null); 
                     return;
                 }
-
                 resolve(targetSheetData);
-
-            } catch (error) {
-                reject(error);
-            }
+            } catch (error) { reject(error); }
         };
         reader.readAsArrayBuffer(file);
     });
 }
 
-// 2. 處理請假資料 (自動搜尋標題列)
+// 2. 處理請假資料 (只負責讀取時數，不做判斷)
 function processLeaveData(leaveData) {
-    if (!leaveData || leaveData.length === 0) {
-        alert('請假明細檔案內容為空！');
-        return {};
-    }
+    if (!leaveData || leaveData.length === 0) return {};
 
-    // --- 自動搜尋標題列邏輯 ---
     let headerRowIndex = -1;
     let headers = [];
 
-    // 搜尋前 20 列，看哪一列同時包含 "員工工號" 和 "合計"
+    // 自動搜尋標題：找 "工號" 和 "合計"
     for (let i = 0; i < Math.min(leaveData.length, 20); i++) {
         const row = leaveData[i];
-        if (row && row.includes('員工工號') && row.includes('合計')) {
+        if (row && 
+            row.some(c => c && c.toString().includes('工號')) && 
+            row.some(c => c && c.toString().includes('合計'))) {
             headerRowIndex = i;
             headers = row;
             break;
@@ -70,45 +57,41 @@ function processLeaveData(leaveData) {
     }
 
     if (headerRowIndex === -1) {
-        console.error("目前讀取到的資料前5筆:", leaveData.slice(0, 5));
-        alert(`請假表錯誤：在前 20 列中找不到包含「員工工號」和「合計」的標題列。\n請確認該分頁是否正確。`);
+        alert('請假表錯誤：找不到「員工工號」與「合計」欄位。');
         return {};
     }
-    // -------------------------
 
     const dataRows = leaveData.slice(headerRowIndex + 1);
-    const empIdIndex = headers.indexOf('員工工號');
-    const totalLeaveIndex = headers.indexOf('合計');
+    const empIdIndex = headers.findIndex(c => c && c.toString().includes('工號'));
+    const totalLeaveIndex = headers.findIndex(c => c && c.toString().includes('合計'));
 
     const leaveMap = {};
     dataRows.forEach(row => {
         if (row && row.length > empIdIndex) {
             const empId = row[empIdIndex];
-            // 轉成數字，無資料則為0
-            const total = parseFloat(row[totalLeaveIndex]) || 0; 
-            
+            const totalHours = parseFloat(row[totalLeaveIndex]) || 0; 
             if (empId) {
-                leaveMap[empId] = { total: total };
+                leaveMap[empId] = { total: totalHours };
             }
         }
     });
-    
     return leaveMap;
 }
 
-// 3. 處理員工名單並進行篩選 (自動搜尋標題列)
+// 3. 處理員工名單 (核心修正：只扣除留職停薪，不扣事病假)
 function processEmployeeData(employeeData, leaveMap) {
     const processedData = [];
     if (!employeeData || employeeData.length === 0) return processedData;
 
-    // --- 自動搜尋標題列邏輯 ---
     let headerRowIndex = -1;
     let headers = [];
 
-    // 搜尋前 20 列
+    // 自動搜尋標題
     for (let i = 0; i < Math.min(employeeData.length, 20); i++) {
         const row = employeeData[i];
-        if (row && (row.includes('員工工號') || row.includes('工號')) && (row.includes('中文姓名') || row.includes('姓名'))) {
+        if (row && 
+            row.some(c => c && c.toString().includes('工號')) && 
+            row.some(c => c && c.toString().includes('姓名'))) {
             headerRowIndex = i;
             headers = row;
             break;
@@ -116,85 +99,111 @@ function processEmployeeData(employeeData, leaveMap) {
     }
 
     if (headerRowIndex === -1) {
-        alert(`員工名單錯誤：在前 20 列中找不到包含「員工工號」和「中文姓名」的標題列。`);
+        alert('員工名單錯誤：找不到標題列 (需包含「工號」與「姓名」)。');
         return processedData;
     }
-    // -------------------------
 
     const dataRows = employeeData.slice(headerRowIndex + 1);
     
-    // 欄位對應 (彈性處理：如果找不到標準名稱，會變成 -1，程式後面會判斷)
+    // 欄位定位
+    const findIdx = (keywords) => headers.findIndex(h => h && keywords.some(k => h.toString().includes(k)));
+
     const idx = {
-        id: headers.indexOf('員工工號') !== -1 ? headers.indexOf('員工工號') : headers.indexOf('工號'),
-        name: headers.indexOf('中文姓名') !== -1 ? headers.indexOf('中文姓名') : headers.indexOf('姓名'),
-        dept: headers.indexOf('部門名稱'),
-        hire: headers.indexOf('到職日期'),
-        title: headers.indexOf('職務名稱'),
-        leaveStart: headers.indexOf('留職停薪日'),
-        leaveEnd: headers.indexOf('留停復職日')
+        id: findIdx(['工號']),
+        name: findIdx(['姓名']),
+        dept: findIdx(['部門']),
+        hire: findIdx(['到職']),
+        title: findIdx(['職務', '職稱']),
+        level: findIdx(['類組', '分類', '職等']), 
+        leaveStart: findIdx(['留職停薪']), // 留停開始
+        leaveEnd: findIdx(['留停復職'])   // 留停結束
     };
 
-    if (idx.id === -1) {
-        alert(`員工名單錯誤：找不到「員工工號」欄位。`);
-        return processedData;
-    }
-
-    const endOfYear = new Date(Date.UTC(2024, 11, 31)); 
-    const startOfYear = new Date(Date.UTC(2024, 0, 1));   
+    // 設定考核年度 (假設為 2024)
+    const startOfYear = new Date(Date.UTC(2024, 0, 1)); // 2024-01-01
+    const endOfYear = new Date(Date.UTC(2024, 11, 31)); // 2024-12-31
+    const daysInYear = (endOfYear - startOfYear) / (1000 * 60 * 60 * 24) + 1; // 366天
 
     dataRows.forEach(row => {
-        if (!row || !row[idx.id]) return;
+        if (!row || idx.id === -1 || !row[idx.id]) return;
 
         const empId = row[idx.id];
-        
-        // 處理日期
         const hireDate = idx.hire !== -1 ? parseExcelDate(row[idx.hire]) : null;
         const formattedHireDate = hireDate ? hireDate.toISOString().split('T')[0] : '';
         
-        // 取得請假天數
+        // 請假時數 (僅顯示用，不影響考核)
         const leaveInfo = leaveMap[empId] || { total: 0 };
-        const totalLeaveDays = leaveInfo.total;
+        const totalLeaveHours = leaveInfo.total;
 
-        // 判斷考核類別邏輯
+        // 讀取其他資訊
+        let level = (idx.level !== -1 && row[idx.level]) ? row[idx.level].toString().trim() : '';
+        let jobTitle = (idx.title !== -1 && row[idx.title]) ? row[idx.title].toString().trim() : '';
+
+        // --- 核心邏輯修正區 ---
         let appraisalType = '不予考核';
         
-        if (totalLeaveDays >= 180) {
-            appraisalType = '不予考績'; 
-        } 
-        else if (hireDate) {
-            const probationEndDate = new Date(hireDate);
-            probationEndDate.setMonth(probationEndDate.getMonth() + 6);
-            const actualStart = probationEndDate > startOfYear ? probationEndDate : startOfYear;
-            const daysInPeriod = (endOfYear - actualStart) / (1000 * 60 * 60 * 24);
-            const actualWorkDays = daysInPeriod - totalLeaveDays;
+        if (hireDate) {
+            // 1. 計算留職停薪天數 (LWOP)
+            let lwopDays = 0;
+            if (idx.leaveStart !== -1 && row[idx.leaveStart]) {
+                const lwopStart = parseExcelDate(row[idx.leaveStart]);
+                // 如果沒有復職日，假設請到年底 (還在留停中)
+                const lwopEnd = (idx.leaveEnd !== -1 && row[idx.leaveEnd]) ? parseExcelDate(row[idx.leaveEnd]) : endOfYear;
 
-            if (actualWorkDays >= 365) appraisalType = '年考';
-            else if (actualWorkDays >= 180) appraisalType = '另考';
-            else appraisalType = '不予考核'; 
+                if (lwopStart && lwopEnd) {
+                    // 計算留停期間與「今年」的重疊天數
+                    const effStart = lwopStart < startOfYear ? startOfYear : lwopStart;
+                    const effEnd = lwopEnd > endOfYear ? endOfYear : lwopEnd;
+                    
+                    if (effEnd >= effStart) {
+                        lwopDays = (effEnd - effStart) / (1000 * 60 * 60 * 24) + 1;
+                    }
+                }
+            }
+
+            // 2. 判斷考核類別
+            // 規則：
+            // - 到職日在今年 1/1 以前 且 沒有留職停薪 => 年考
+            // - 否則計算「實際在職天數 (扣除留停)」
+            //   - 滿 6 個月 (約 183 天) => 另考
+            //   - 不滿 6 個月 => 不予考核
+
+            if (hireDate < startOfYear && lwopDays === 0) {
+                appraisalType = '年考';
+            } else {
+                // 計算基礎：如果是舊員工，從年初算；新員工從到職日算
+                const baseDate = hireDate < startOfYear ? startOfYear : hireDate;
+                // 潛在最大在職天數
+                const potentialDays = (endOfYear - baseDate) / (1000 * 60 * 60 * 24) + 1;
+                // 實際在職 = 潛在 - 留停
+                const actualServiceDays = potentialDays - lwopDays;
+
+                if (actualServiceDays >= 183) { // 滿半年
+                    appraisalType = '另考';
+                } else {
+                    appraisalType = '不予考核';
+                }
+            }
         }
 
         processedData.push({
             employeeId: empId,
             name: idx.name !== -1 ? row[idx.name] : '',
             department: idx.dept !== -1 ? row[idx.dept] : '',
-            jobTitle: idx.title !== -1 ? row[idx.title] : '',
+            jobTitle: jobTitle,
             hireDate: formattedHireDate,
-            totalLeave: totalLeaveDays,
-            appraisalType: appraisalType
+            totalLeave: totalLeaveHours,
+            appraisalType: appraisalType,
+            level: level
         });
     });
     return processedData;
 }
 
-// 輔助：解析 Excel 日期
+// 日期解析輔助函式
 function parseExcelDate(value) {
     if (!value) return null;
-    if (typeof value === 'number') {
-        return new Date(Date.UTC(1899, 11, 30 + value));
-    }
-    if (typeof value === 'string') {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) return date;
-    }
+    if (typeof value === 'number') { return new Date(Date.UTC(1899, 11, 30 + value)); }
+    if (typeof value === 'string') { const date = new Date(value); if (!isNaN(date.getTime())) return date; }
     return null;
 }
