@@ -1,4 +1,4 @@
-// 1. 讀取 Excel 檔案 (聰明搜尋版：自動遍歷所有分頁，直到找到關鍵字)
+// 1. 讀取 Excel 檔案
 function readExcelFile(file, mustInclude = ['員工工號']) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -6,10 +6,8 @@ function readExcelFile(file, mustInclude = ['員工工號']) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
                 let targetSheetData = null;
 
-                // 迴圈：一個一個分頁檢查
                 for (const sheetName of workbook.SheetNames) {
                     const worksheet = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -20,16 +18,12 @@ function readExcelFile(file, mustInclude = ['員工工號']) {
 
                     if (isValidSheet) {
                         targetSheetData = jsonData;
-                        console.log(`Bingo! 在分頁 "${sheetName}" 找到目標資料！`);
+                        console.log(`Bingo! 在分頁 "${sheetName}" 找到資料！`);
                         break; 
                     }
                 }
 
-                if (!targetSheetData) {
-                    console.warn(`找不到包含 ${mustInclude} 的資料分頁。`);
-                    resolve(null); 
-                    return;
-                }
+                if (!targetSheetData) { resolve(null); return; }
                 resolve(targetSheetData);
             } catch (error) { reject(error); }
         };
@@ -37,29 +31,21 @@ function readExcelFile(file, mustInclude = ['員工工號']) {
     });
 }
 
-// 2. 處理請假資料 (只負責讀取時數，不做判斷)
+// 2. 處理請假資料
 function processLeaveData(leaveData) {
     if (!leaveData || leaveData.length === 0) return {};
 
     let headerRowIndex = -1;
     let headers = [];
 
-    // 自動搜尋標題：找 "工號" 和 "合計"
     for (let i = 0; i < Math.min(leaveData.length, 20); i++) {
         const row = leaveData[i];
-        if (row && 
-            row.some(c => c && c.toString().includes('工號')) && 
-            row.some(c => c && c.toString().includes('合計'))) {
-            headerRowIndex = i;
-            headers = row;
-            break;
+        if (row && row.some(c => c && c.toString().includes('工號')) && row.some(c => c && c.toString().includes('合計'))) {
+            headerRowIndex = i; headers = row; break;
         }
     }
 
-    if (headerRowIndex === -1) {
-        alert('請假表錯誤：找不到「員工工號」與「合計」欄位。');
-        return {};
-    }
+    if (headerRowIndex === -1) { alert('請假表錯誤：找不到「員工工號」與「合計」欄位。'); return {}; }
 
     const dataRows = leaveData.slice(headerRowIndex + 1);
     const empIdIndex = headers.findIndex(c => c && c.toString().includes('工號'));
@@ -70,15 +56,13 @@ function processLeaveData(leaveData) {
         if (row && row.length > empIdIndex) {
             const empId = row[empIdIndex];
             const totalHours = parseFloat(row[totalLeaveIndex]) || 0; 
-            if (empId) {
-                leaveMap[empId] = { total: totalHours };
-            }
+            if (empId) { leaveMap[empId] = { total: totalHours }; }
         }
     });
     return leaveMap;
 }
 
-// 3. 處理員工名單 (核心修正：只扣除留職停薪，不扣事病假)
+// 3. 處理員工名單 (判定考核類別 & 讀取項目類別)
 function processEmployeeData(employeeData, leaveMap) {
     const processedData = [];
     if (!employeeData || employeeData.length === 0) return processedData;
@@ -86,43 +70,40 @@ function processEmployeeData(employeeData, leaveMap) {
     let headerRowIndex = -1;
     let headers = [];
 
-    // 自動搜尋標題
     for (let i = 0; i < Math.min(employeeData.length, 20); i++) {
         const row = employeeData[i];
-        if (row && 
-            row.some(c => c && c.toString().includes('工號')) && 
-            row.some(c => c && c.toString().includes('姓名'))) {
-            headerRowIndex = i;
-            headers = row;
-            break;
+        if (row && row.some(c => c && c.toString().includes('工號')) && row.some(c => c && c.toString().includes('姓名'))) {
+            headerRowIndex = i; headers = row; break;
         }
     }
 
-    if (headerRowIndex === -1) {
-        alert('員工名單錯誤：找不到標題列 (需包含「工號」與「姓名」)。');
-        return processedData;
-    }
+    if (headerRowIndex === -1) { alert('員工名單錯誤：找不到標題列。'); return processedData; }
 
     const dataRows = employeeData.slice(headerRowIndex + 1);
-    
-    // 欄位定位
     const findIdx = (keywords) => headers.findIndex(h => h && keywords.some(k => h.toString().includes(k)));
 
     const idx = {
         id: findIdx(['工號']),
-        name: findIdx(['姓名']),
+        name: findIdx(['中文姓名', '員工姓名']),
         dept: findIdx(['部門']),
         hire: findIdx(['到職']),
         title: findIdx(['職務', '職稱']),
         level: findIdx(['類組', '分類', '職等']), 
-        leaveStart: findIdx(['留職停薪']), // 留停開始
-        leaveEnd: findIdx(['留停復職'])   // 留停結束
+        leaveStart: findIdx(['留職停薪']),
+        leaveEnd: findIdx(['留停復職']),
+        itemCategory: findIdx(['項目考核類別', '項目', '考核項目'])
     };
 
-    // 設定考核年度 (假設為 2024)
-    const startOfYear = new Date(Date.UTC(2024, 0, 1)); // 2024-01-01
-    const endOfYear = new Date(Date.UTC(2024, 11, 31)); // 2024-12-31
-    const daysInYear = (endOfYear - startOfYear) / (1000 * 60 * 60 * 24) + 1; // 366天
+    if (idx.name === -1) idx.name = findIdx(['姓名']);
+
+    // 強制指定 M 欄邏輯
+    if (idx.itemCategory === -1 && headers.length > 12) {
+        idx.itemCategory = 12; 
+        console.log("未找到項目考核類別標題，自動指定為 M 欄 (Index 12)");
+    }
+
+    const endOfYear = new Date(Date.UTC(2024, 11, 31)); 
+    const startOfYear = new Date(Date.UTC(2024, 0, 1));   
 
     dataRows.forEach(row => {
         if (!row || idx.id === -1 || !row[idx.id]) return;
@@ -131,57 +112,45 @@ function processEmployeeData(employeeData, leaveMap) {
         const hireDate = idx.hire !== -1 ? parseExcelDate(row[idx.hire]) : null;
         const formattedHireDate = hireDate ? hireDate.toISOString().split('T')[0] : '';
         
-        // 請假時數 (僅顯示用，不影響考核)
         const leaveInfo = leaveMap[empId] || { total: 0 };
         const totalLeaveHours = leaveInfo.total;
 
-        // 讀取其他資訊
         let level = (idx.level !== -1 && row[idx.level]) ? row[idx.level].toString().trim() : '';
         let jobTitle = (idx.title !== -1 && row[idx.title]) ? row[idx.title].toString().trim() : '';
+        
+        let itemCategory = '';
+        if (idx.itemCategory !== -1 && row[idx.itemCategory] !== undefined) {
+            itemCategory = row[idx.itemCategory]; 
+        }
 
-        // --- 核心邏輯修正區 ---
-        let appraisalType = '不予考核';
+        let appraisalType = '特考'; 
         
         if (hireDate) {
-            // 1. 計算留職停薪天數 (LWOP)
             let lwopDays = 0;
             if (idx.leaveStart !== -1 && row[idx.leaveStart]) {
                 const lwopStart = parseExcelDate(row[idx.leaveStart]);
-                // 如果沒有復職日，假設請到年底 (還在留停中)
                 const lwopEnd = (idx.leaveEnd !== -1 && row[idx.leaveEnd]) ? parseExcelDate(row[idx.leaveEnd]) : endOfYear;
 
                 if (lwopStart && lwopEnd) {
-                    // 計算留停期間與「今年」的重疊天數
                     const effStart = lwopStart < startOfYear ? startOfYear : lwopStart;
                     const effEnd = lwopEnd > endOfYear ? endOfYear : lwopEnd;
-                    
                     if (effEnd >= effStart) {
                         lwopDays = (effEnd - effStart) / (1000 * 60 * 60 * 24) + 1;
                     }
                 }
             }
 
-            // 2. 判斷考核類別
-            // 規則：
-            // - 到職日在今年 1/1 以前 且 沒有留職停薪 => 年考
-            // - 否則計算「實際在職天數 (扣除留停)」
-            //   - 滿 6 個月 (約 183 天) => 另考
-            //   - 不滿 6 個月 => 不予考核
-
             if (hireDate < startOfYear && lwopDays === 0) {
                 appraisalType = '年考';
             } else {
-                // 計算基礎：如果是舊員工，從年初算；新員工從到職日算
                 const baseDate = hireDate < startOfYear ? startOfYear : hireDate;
-                // 潛在最大在職天數
                 const potentialDays = (endOfYear - baseDate) / (1000 * 60 * 60 * 24) + 1;
-                // 實際在職 = 潛在 - 留停
                 const actualServiceDays = potentialDays - lwopDays;
 
-                if (actualServiceDays >= 183) { // 滿半年
+                if (actualServiceDays >= 183) {
                     appraisalType = '另考';
                 } else {
-                    appraisalType = '不予考核';
+                    appraisalType = '特考';
                 }
             }
         }
@@ -194,16 +163,123 @@ function processEmployeeData(employeeData, leaveMap) {
             hireDate: formattedHireDate,
             totalLeave: totalLeaveHours,
             appraisalType: appraisalType,
-            level: level
+            level: level,
+            itemCategory: itemCategory
         });
     });
     return processedData;
 }
 
-// 日期解析輔助函式
 function parseExcelDate(value) {
     if (!value) return null;
     if (typeof value === 'number') { return new Date(Date.UTC(1899, 11, 30 + value)); }
     if (typeof value === 'string') { const date = new Date(value); if (!isNaN(date.getTime())) return date; }
     return null;
+}
+
+// 4. 項目考核類別員額統計
+function calculateAndRenderAllocation(data) {
+    const categoryStats = {};
+
+    // 1~5 類別
+    const TARGET_CATEGORIES = ['1', '2', '3', '4', '5'];
+    
+    // 初始化
+    TARGET_CATEGORIES.forEach(cat => {
+        categoryStats[cat] = { 
+            A: 0, a: 0, 
+            B: 0, b: 0, 
+            C: 0, c: 0, 
+            total: 0 
+        };
+    });
+
+    // 統計人數
+    data.forEach(emp => {
+        const type = emp.appraisalType;
+        const leave = parseFloat(emp.totalLeave) || 0;
+        const cat = String(emp.itemCategory).trim();
+
+        if (TARGET_CATEGORIES.includes(cat)) {
+            const stats = categoryStats[cat];
+            
+            if (type === '年考') {
+                if (leave === 0) stats.A++;
+                else stats.a++;
+            } else if (type === '另考') {
+                if (leave === 0) stats.B++;
+                else stats.b++;
+            } else if (type === '特考') {
+                if (leave === 0) stats.C++;
+                else stats.c++;
+            }
+            stats.total++;
+        }
+    });
+
+    // 計算配額 (F, H, I, J)
+    const tableData = Object.keys(categoryStats).map(catName => {
+        const s = categoryStats[catName];
+        
+        // D: 受考人數
+        const D = s.total;
+        
+        // d: 事病假
+        const d = s.a + s.b + s.c;
+        
+        // E: 2等基數
+        const E = D - d;
+        
+        // F: 2等員額
+        const F = Math.floor(E * 0.25);
+        
+        // G: 3等基數
+        const G = E - F;
+        
+        // H: 3等員額
+        const H = Math.floor(G * 0.60);
+        
+        // I: 4等員額
+        const I = Math.ceil((G - H) + (d / 2.0));
+        
+        // J: 5等員額
+        let J = D - F - H - I;
+        if (J < 0) J = 0;
+
+        return { catName, D, d, E, F, G, H, I, J };
+    });
+
+    // 渲染新表格 (只保留 2, 3, 4, 5 等員額)
+    if ($.fn.DataTable.isDataTable('#allocationTable')) {
+        $('#allocationTable').DataTable().destroy();
+    }
+
+    $('#allocationTable').DataTable({
+        data: tableData,
+        columns: [
+            { title: "類別", data: "catName", className: "fw-bold text-center" },
+            { 
+                title: "2等員額", data: "F", className: "text-center fw-bold",
+                render: data => data + ' 人'
+            },
+            { 
+                title: "3等員額", data: "H", className: "text-center fw-bold",
+                render: data => data + ' 人'
+            },
+            { 
+                title: "4等員額", data: "I", className: "text-center fw-bold",
+                render: data => data + ' 人'
+            },
+            { 
+                title: "5等員額", data: "J", className: "text-center fw-bold",
+                render: data => data + ' 人'
+            }
+        ],
+        language: { "url": "https://cdn.datatables.net/plug-ins/1.11.5/i18n/zh-HANT.json" },
+        dom: 'Bfrtip',
+        order: [[0, 'asc']],
+        paging: false,
+        searching: false,
+        info: false 
+    });
 }

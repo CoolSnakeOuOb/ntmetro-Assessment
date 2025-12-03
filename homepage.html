@@ -28,13 +28,13 @@
                     <hr>
                     <div class="row align-items-center">
                         <div class="col-md-6">
-                            <label for="employeeListFile" class="form-label">1. 員工名單 (Excel)</label>
+                            <label for="employeeListFile" class="form-label">1. 員工名單</label>
                             <input type="file" class="form-control mb-2" id="employeeListFile" accept=".xls,.xlsx">
-                            <label for="leaveFile" class="form-label">2. 請假明細 (Excel 樞紐表)</label>
+                            <label for="leaveFile" class="form-label">2. 請假明細</label>
                             <input type="file" class="form-control" id="leaveFile" accept=".xls,.xlsx">
                         </div>
                         <div class="col-md-6 text-end">
-                            <button class="btn btn-primary" type="button" id="uploadBtn">上傳並自動篩選</button>
+                            <button class="btn btn-primary" type="button" id="uploadBtn">上傳檔案</button>
                         </div>
                     </div>
                     <div id="upload-status" class="mt-2 small text-muted"></div>
@@ -48,12 +48,8 @@
 
             <div id="allocation-view" style="display: none;">
                 <div class="frame mb-4">
-                    <h4>單位的等第員額分配 (基礎統計)</h4>
+                    <h4>項目考核類別員額統計表</h4>
                     <hr>
-                    <div class="alert alert-info">
-                        <strong>統計說明：</strong> 
-                        本表統計各單位符合 <strong>「年考」</strong> 與 <strong>「另考」</strong> 資格之同仁人數。
-                    </div>
                     <table id="allocationTable" class="display" style="width:100%"></table>
                 </div>
             </div>
@@ -61,20 +57,34 @@
             <div id="employee-view" style="display: none;">
                 <form id="trialPeriodForm">
                     <div class="frame">
-                        <div class="frame-header"><span class="header-icon">📋</span><span class="header-title">自評表基本資料</span></div>
+                        <div class="frame-header">
+                            <span class="header-icon">📋</span>
+                            <span class="header-title" style="font-size: 20px;">自評表基本資料</span>
+                        </div>
                         <div class="frame-body">
-                           <div class="row mb-3"><div class="col-md-6"><label class="form-label">主辦業務:</label><input type="text" class="form-control"></div><div class="col-md-6"><label class="form-label">專業:</label><input type="text" class="form-control"></div></div>
-                           <div class="row mb-3"><div class="col-md-6"><label class="form-label">試用期間（起）:</label><input type="date" class="form-control"></div><div class="col-md-6"><label class="form-label">試用期間（止）:</label><input type="date" class="form-control"></div></div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="hostingbusiness" class="form-label">主辦業務:</label><input type="text" class="form-control" id="hostingbusiness"></div>
+                                <div class="col-md-6"><label for="major" class="form-label">專業:</label><input type="text" class="form-control" id="major"></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6"><label for="dayfrom" class="form-label">試用期間（起）:</label><input type="date" class="form-control" id="dayfrom"></div>
+                                <div class="col-md-6"><label for="dayto" class="form-label">試用期間（止）:</label><input type="date" class="form-control" id="dayto"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="frame">
-                        <div class="frame-header"><span class="header-icon">📋</span><span class="header-title">自我評價</span></div>
+                        <div class="frame-header">
+                            <span class="header-icon">📋</span>
+                            <span class="header-title" style="font-size: 20px;">自我評價</span>
+                        </div>
                         <div class="frame-body">
                            <div class="row mb-3"><div class="col-md-6"><label class="form-label">1. 對試用期間在公司的表現感到：</label><select class="form-select"><option>非常滿意</option><option>滿意</option><option>尚可</option><option>不滿意</option></select></div><div class="col-md-6"><label class="form-label">2. 對與同事與主管間關係感到：</label><select class="form-select"><option>非常滿意</option><option>滿意</option><option>尚可</option><option>不滿意</option></select></div></div>
                            <div class="row mb-3"><div class="col-md-12"><label class="form-label">9. 對您所從擔任職務希望：</label><select class="form-select" id="se_9"><option value="1">繼續擔任現職</option><option value="2">如能調整至同單位____職務</option><option value="3">如可變更至____單位____職務</option></select><input type="text" id="position_change" class="form-control mt-2" style="display: none;"><input type="text" id="unit_change" class="form-control mt-2" style="display: none;"></div></div>
                         </div>
                     </div>
-                    <div class="mt-3 mb-3"><button type="button" class="btn btn-primary w-100 fs-4" style="background-color: #2d5986;">📤 送出</button></div>
+                    <div class="mt-3 mb-3">
+                        <button type="button" class="btn btn-primary w-100 fs-4" id="sybmitform" style="background-color: #2d5986;">📤 送出</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -84,15 +94,20 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="share.js"></script>
+    
     <script src="data_processor.js"></script>
 
     <script>
         $(document).ready(function() {
             let globalEmployeeData = [];
             let table = null;
-
+            
             const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
-            if (!loggedInUser) { window.location.href = 'index.html'; return; }
+            if (!loggedInUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
             $('#username').text(`歡迎, ${loggedInUser.name}`);
 
             if (loggedInUser.role === 'supervisor') {
@@ -100,15 +115,18 @@
                 renderSupervisorSidebar();
                 initializeSupervisorTable();
 
+                // 上傳按鈕事件
                 $('#uploadBtn').on('click', function() {
                     const employeeListFile = $('#employeeListFile')[0].files[0];
                     const leaveFile = $('#leaveFile')[0].files[0];
 
                     if (!employeeListFile || !leaveFile) {
-                        $('#upload-status').text('請同時選擇檔案！').addClass('text-danger'); return;
+                        $('#upload-status').text('請同時選擇員工名單和請假明細檔案！').removeClass('text-success').addClass('text-danger');
+                        return;
                     }
                     $('#upload-status').text('處理中...').removeClass('text-danger').addClass('text-muted');
 
+                    // 呼叫 data_processor.js 中的 readExcelFile
                     Promise.all([
                         readExcelFile(employeeListFile, ['員工工號']),
                         readExcelFile(leaveFile, ['員工工號', '合計'])
@@ -116,40 +134,53 @@
                         if (!employeeData) { $('#upload-status').text('員工名單錯誤').addClass('text-danger'); return; }
                         if (!leaveData) { $('#upload-status').text('請假明細錯誤').addClass('text-danger'); return; }
 
+                        // 呼叫 data_processor.js 中的處理函式
                         const leaveMap = processLeaveData(leaveData); 
                         const processedData = processEmployeeData(employeeData, leaveMap);
                         globalEmployeeData = processedData;
 
                         if(table) { table.clear().rows.add(processedData).draw(); }
-                        $('#upload-status').text('成功匯入！').removeClass('text-danger').addClass('text-success');
-                    }).catch(e => { console.error(e); $('#upload-status').text('失敗，請檢查F12').addClass('text-danger'); });
+                        $('#upload-status').text('成功匯入並自動篩選！').removeClass('text-danger').addClass('text-success');
+                    }).catch(error => {
+                        console.error('檔案處理失敗:', error);
+                        $('#upload-status').text('檔案處理失敗，請按 F12 查看詳細錯誤訊息。').removeClass('text-success').addClass('text-danger');
+                    });
                 });
 
+                // 切換回首頁
                 $(document).on('click', '#menu-home', function(e) {
-                    e.preventDefault(); $('#supervisor-view').show(); $('#allocation-view').hide();
+                    e.preventDefault(); 
+                    $('#supervisor-view').show(); 
+                    $('#allocation-view').hide();
                 });
 
+                // 切換至員額分配表 (這裡呼叫 data_processor.js 的函式)
                 $(document).on('click', '#menu-allocation', function(e) {
                     e.preventDefault();
-                    if (globalEmployeeData.length === 0) { alert("請先上傳員工名單"); return; }
-                    $('#supervisor-view').hide(); $('#allocation-view').show();
-                    calculateAndRenderAllocation();
+                    if (globalEmployeeData.length === 0) { alert("請先上傳員工名單，系統才能進行統計。"); return; }
+                    $('#supervisor-view').hide(); 
+                    $('#allocation-view').show();
+                    
+                    // ★ 關鍵：直接呼叫外部 JS 的函式，不在此重複定義
+                    calculateAndRenderAllocation(globalEmployeeData);
                 });
 
             } else {
+                // 員工視圖邏輯
                 $('#employee-view').show();
                 renderEmployeeSidebar();
                 $('#se_9').on('change', function() {
-                    if (this.value === '2') { $('#position_change').show(); $('#unit_change').hide(); }
-                    else if (this.value === '3') { $('#unit_change').show(); $('#position_change').hide(); }
-                    else { $('#position_change').hide(); $('#unit_change').hide(); }
+                    const input_1 = $('#position_change');
+                    const input_2 = $('#unit_change');
+                    if (this.value === '2') { input_1.show(); input_2.hide().val(''); }
+                    else if (this.value === '3') { input_2.show(); input_1.hide().val(''); }
+                    else { input_1.hide().val(''); input_2.hide().val(''); }
                 });
             }
 
             $('#logout-btn').on('click', function() { sessionStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; });
 
             function renderSupervisorSidebar() {
-                // 移除了 "不予考核" 的篩選按鈕，加入 "特考"
                 const sidebarHtml = `
                     <div>
                         <a href="#" id="menu-home" class="itemToggle">首頁（考核名單）</a>
@@ -159,34 +190,34 @@
                         <div class="submenu"><a href="#" id="filterAnnual">－年考</a><a href="#" id="filterSpecial">－另考</a><a href="#" id="filterSpecialExam">－特考</a></div>
                     </div>`;
                 $('#sidebar').html(sidebarHtml);
-                $('#filterAnnual').on('click', ()=> table.column(6).search('年考').draw());
-                $('#filterSpecial').on('click', ()=> table.column(6).search('另考').draw());
-                $('#filterSpecialExam').on('click', ()=> table.column(6).search('特考').draw());
+                $('#filterAnnual').on('click', ()=> table.column(7).search('年考').draw());
+                $('#filterSpecial').on('click', ()=> table.column(7).search('另考').draw());
+                $('#filterSpecialExam').on('click', ()=> table.column(7).search('特考').draw());
             }
 
             function initializeSupervisorTable() {
                 table = $('#appraisalTable').DataTable({
                     "data": [],
+                    "language": {
+                        "url": "https://cdn.datatables.net/plug-ins/1.11.5/i18n/zh-HANT.json"
+                    },
                     "columns": [
                         { "data": 'employeeId', "title": "員工工號" },
                         { "data": 'name', "title": "姓名" },
                         { "data": 'department', "title": "部門" },
                         { "data": 'jobTitle', "title": "職務" },
                         { "data": 'hireDate', "title": "到職日" },
-                        { "data": 'totalLeave', "title": "請假(天)"},
+                        { "data": 'totalLeave', "title": "請假"},
+                        { "data": 'itemCategory', "title": "項目考核類別" },
                         { 
-                            "data": 'appraisalType', 
-                            "title": "考核類別",
+                            "data": 'appraisalType', "title": "考核類別",
                             "render": function(data, type, row) {
                                 if (type === 'display') {
-                                    // *** 修正：只保留 3 種選項 ***
                                     const options = ['年考', '另考', '特考'];
                                     let select = `<select class="form-select form-select-sm appraisal-select" data-id="${row.employeeId}">`;
                                     options.forEach(opt => {
                                         const isSelected = data === opt ? 'selected' : '';
-                                        let style = '';
-                                        if(opt === '特考') style = 'color:blue; font-weight:bold;';
-                                        
+                                        let style = (opt === '特考') ? 'color:blue; font-weight:bold;' : '';
                                         select += `<option value="${opt}" ${isSelected} style="${style}">${opt}</option>`;
                                     });
                                     select += `</select>`;
@@ -196,8 +227,7 @@
                             }
                         },
                         { "data": null, "title": "操作", "render": r => `<a href="appraisal_form.html?employeeId=${r.employeeId}" class="btn btn-primary btn-sm">進行評核</a>`, "orderable": false }
-                    ],
-                    "language": { "url": "https://cdn.datatables.net/plug-ins/1.11.5/i18n/zh-HANT.json" }
+                    ]
                 });
 
                 $('#appraisalTable tbody').on('change', '.appraisal-select', function() {
@@ -207,44 +237,8 @@
                     const rowData = row.data();
                     rowData.appraisalType = newVal;
                     table.row($(this).closest('tr')).data(rowData).invalidate();
-
                     const globalItem = globalEmployeeData.find(item => item.employeeId == empId);
                     if(globalItem) { globalItem.appraisalType = newVal; }
-                });
-            }
-
-            function calculateAndRenderAllocation() {
-                const deptStats = {};
-                globalEmployeeData.forEach(emp => {
-                    const dept = emp.department;
-                    const type = emp.appraisalType;
-                    if (!deptStats[dept]) { deptStats[dept] = { annual: 0, special: 0, total: 0 }; }
-
-                    if (type === '年考') {
-                        deptStats[dept].annual++;
-                        deptStats[dept].total++;
-                    } else if (type === '另考') {
-                        deptStats[dept].special++;
-                        deptStats[dept].total++;
-                    }
-                    // 特考通常不算入常態分配基數，若您需要算入，請取消下方註解
-                    // else if (type === '特考') { deptStats[dept].total++; }
-                });
-
-                const tableData = Object.keys(deptStats).map(d => ({ deptName: d, stats: deptStats[d] }));
-                if ($.fn.DataTable.isDataTable('#allocationTable')) { $('#allocationTable').DataTable().destroy(); }
-
-                $('#allocationTable').DataTable({
-                    data: tableData,
-                    columns: [
-                        { title: "單位名稱", data: "deptName" },
-                        { title: "年考人數", data: "stats.annual" },
-                        { title: "另考人數", data: "stats.special" },
-                        { title: "考核基數 (合計)", data: "stats.total", className: "fw-bold text-center bg-light" }
-                    ],
-                    language: { "url": "https://cdn.datatables.net/plug-ins/1.11.5/i18n/zh-HANT.json" },
-                    dom: 'Bfrtip',
-                    order: [[3, 'desc']]
                 });
             }
         });
